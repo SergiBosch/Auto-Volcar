@@ -1,0 +1,8 @@
+#!/bin/bash
+
+#grub-install /dev/sda
+#update-grup
+sed "13 d" /etc/rc.local > /tmp/rc.local
+cat /tmp/rc.local > /etc/rc.local
+
+#rm -r $0

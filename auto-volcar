@@ -1,0 +1,152 @@
+#!/bin/bash
+
+comprobacion_sudo(){
+uuid=`id -u`
+if [ $uuid -ne 0 ]
+then
+	echo "Debe ejecutarse como administrador, pruebe con sudo auto-volcar"
+	exit 1
+fi
+}
+comprobacion_parametro(){
+if [ $parametros -ne 1 ]
+then
+        echo "Se debe indicar la maqueta que vaya a volcarse"
+        exit 2
+fi
+}
+comprobacion_ficheros(){
+if [ ! -f "./fsarchiver" ]; then
+	echo "Debes tener el script de fsarchiver en el mismo directorio"
+	exit 3
+fi
+if [ ! -f "./autodestruccion" ]; then
+	echo "El script autodestruccion debe estar en el mismo directorio"
+	exit 4
+fi
+}
+preguntas(){
+echo -e "Particion de swap: (ej: sda1)"
+read part_swap
+echo -e "Particion UEFI (si no hay, dejar en blanco): (ej:sda2)"
+read part_uefi
+echo -e "Particion del sistema: (ej: sda2)"
+read part_sis
+echo -e "Particion de la home: (ej: sda3)"
+read part_home
+echo -e "Introduzca nuevo nombre de host:"
+read hostname
+}
+
+datos(){
+echo
+echo
+echo "LOS DATOS A UTILIZAR SERAN LOS SIGUIENTES"
+echo "========================================="
+echo -e "Maqueta que se utilizara: \t $maqueta"
+echo -e "Particion de swap:\t\t $part_swap"
+echo -e "Particion de UEFI:\t\t $part_uefi"
+echo -e "Particion del sistema:\t\t $part_sis"
+echo -e "Particion de la home:\t\t $part_home"
+echo -e "Nuevo nombre de host:\t\t $hostname"
+echo
+echo
+echo "Son correctos los datos? (s/n)"
+read respuesta
+}
+
+cambio_hostname(){
+#Cambio fichero hostname
+echo $hostname > /mnt/etc/hostname
+#Cambio fichero hosts
+sed "2 c127.0.1.1\t$hostname" /mnt/etc/hosts > /tmp/hosts
+cat /tmp/hosts > /mnt/etc/hosts
+}
+
+cambio_uuid_swap(){
+uuid_swap=`blkid | grep /dev/$part_swap | cut -d '"' -f 2`
+
+linia_swap1=`cat -n /mnt/etc/fstab | grep swap | cut -f 1 | tr "\n" "," | cut -d "," -f 1`
+linia_swap2=`cat -n /mnt/etc/fstab | grep swap | cut -f 1 | tr "\n" "," | cut -d "," -f 2`
+
+sed "$linia_swap1,$linia_swap2 s/UUID=[A-Za-z0-9-]*/UUID=$uuid_swap/" /mnt/etc/fstab > /tmp/fstab
+cat /tmp/fstab > /mnt/etc/fstab
+
+}
+
+cambio_uuid_uefi(){
+uuid_uefi=`blkid | grep /dev/$part_uefi | cut -d '"' -f 2`
+
+linia_uefi=`cat -n /mnt/etc/fstab | grep vfat | cut -f 1`
+
+sed "$linia_uefi s/UUID=[A-Za-z0-9-]*/UUID=$uuid_uefi/" /mnt/etc/fstab > /tmp/fstab
+cat /tmp/fstab > /mnt/etc/fstab
+
+}
+auto_grub(){
+sed "13 c/srv/autodestruccion" /etc/rc.local > /tmp/rc.local
+cat /tmp/rc.local > /etc/rc.local
+cp -p ./autodestruccion /srv/autodestruccion
+}
+#Parametros pasados a variables
+parametros=$#
+maqueta=$1
+continuar=0
+#Comprobaciones
+comprobacion_sudo
+comprobacion_parametro
+comprobacion_ficheros
+clear
+until [ $continuar = si ]
+do
+	preguntas
+	datos
+	case $respuesta in
+		n|N|no|NO|No|nO) continuar=no;;
+		*) continuar=si;;
+	esac
+done
+./fsarchiver -v restfs $maqueta dest=/dev/$part_sis,id=0 dest=/dev/$part_home,id=1
+echo
+echo "Montando la particion $part_sis en /mnt"
+mount /dev/$part_sis /mnt
+echo
+echo "Cambiando el nombre de host por $hostname"
+cambio_hostname
+echo
+echo "Cambiando el uuid de la particion swap en el /etc/fstab"
+cambio_uuid_swap
+if [ $part_uefi ]; then
+echo
+echo "Equipo con UEFI"
+echo "==============="
+	echo
+	echo "Cambiando el uuid de la particion uefi en el /etc/fstab"
+	cambio_uuid_uefi
+	echo "Mount uefi"
+	mount /dev/$part_uefi /mnt/boot/efi
+	echo "Mount /proc"
+	mount -t proc /proc /mnt/proc
+	echo "Mount /dev"
+	mount --bind /dev /mnt/dev
+	echo "Mount /sys"
+	mount --bind /sys /mnt/sys
+	echo "Chroot"
+	chroot /mnt
+	echo
+	echo "Instalando el grub"
+	grub-install
+else
+echo
+echo "Equipo sin UEFI"
+echo "==============="
+	echo
+	echo "Instalando el grub"
+	grub-install --root-directory=/mnt /dev/sda
+fi
+echo
+echo "Preparando para el reinicio"
+auto_grub
+echo
+echo "Reiniciando"
+reboot
