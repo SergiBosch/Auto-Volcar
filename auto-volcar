@@ -15,6 +15,15 @@ then
         exit 2
 fi
 }
+comprobacion_sistema(){
+sistema=`cat /etc/issue | cut -d " " -f 1`
+if [ $part_uefi ]; then
+	if [ $sistema = "Ubuntu" ]; then
+		echo "Para que el volcado de un sistema con UEFI funcione bien debe ejecutarse en un Ubuntu"
+		exit 5
+	fi
+fi
+}
 comprobacion_ficheros(){
 if [ ! -f "./fsarchiver" ]; then
 	echo "Debes tener el script de fsarchiver en el mismo directorio"
@@ -88,6 +97,12 @@ sed "13 c/srv/autodestruccion" /etc/rc.local > /tmp/rc.local
 cat /tmp/rc.local > /etc/rc.local
 cp -p ./autodestruccion /srv/autodestruccion
 }
+creacion_chroot(){
+cat << EOF | chroot /mnt /bin/sh
+grub-install
+exit
+EOF
+}
 #Parametros pasados a variables
 parametros=$#
 maqueta=$1
@@ -106,6 +121,7 @@ do
 		*) continuar=si;;
 	esac
 done
+comprobacion_sistema
 ./fsarchiver -v restfs $maqueta dest=/dev/$part_sis,id=0 dest=/dev/$part_home,id=1
 echo
 echo "Montando la particion $part_sis en /mnt"
@@ -131,11 +147,7 @@ echo "==============="
 	mount --bind /dev /mnt/dev
 	echo "Mount /sys"
 	mount --bind /sys /mnt/sys
-	echo "Chroot"
-	chroot /mnt
-	echo
-	echo "Instalando el grub"
-	grub-install
+	creacion_chroot
 else
 echo
 echo "Equipo sin UEFI"
