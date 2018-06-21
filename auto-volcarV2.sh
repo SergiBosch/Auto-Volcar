@@ -275,7 +275,7 @@ mount $part_uefi /mnt/boot/efi
 mount -t proc /proc /mnt/proc
 mount --bind /dev /mnt/dev
 mount --bind /sys /mnt/sys
-chroot /mnt
+
 (
 echo grub-install
 ) | chroot /mnt
@@ -362,5 +362,6 @@ echo "Preparando para el reinicio"
 auto_grub
 echo
 echo "Reiniciando"
-#reboot
+
+reboot
 echo "FIN"
