@@ -179,15 +179,15 @@ echo #El resto del tamano
 
 echo w #Guardar cambios
 ) | fdisk /dev/sda
-mkswap /dev/sda1 #Formatear en swap
-(echo s) | mkfs.ext4 /dev/sda2 #Formateo en ext4
-(echo s) | mkfs.ext4 /dev/sda3 #Formateo en ext4
+mkswap /dev/sda5 #Formatear en swap
+(echo s) | mkfs.ext4 /dev/sda6 #Formateo en ext4
+(echo s) | mkfs.ext4 /dev/sda7 #Formateo en ext4
 part_swap="/dev/sda5"
 part_sis="/dev/sda6"
 part_home="/dev/sda7"
 }
 
-particiones_noUEFI_halfdisk() {
+particiones_siUEFI_halfdisk() {
 particion_extend=`fdisk -l | grep Extend | cut -d " " -f 1 | cut -c9`
 formato_tabla_part=`fdisk -l /dev/sda | grep type | cut -d " " -f3`
 (
@@ -224,14 +224,14 @@ echo #El resto del tamano
 
 echo w #Guardar cambios
 ) | fdisk /dev/sda
-(echo s) | mkfs.vfat -F 32 /dev/sda1 #Formateo de la particion UEFI
-mkswap /dev/sda2 #Formateo de la particion SWAP
-(echo s) | mkfs.ext4 /dev/sda3 #Formateo de la particion /
-(echo s) | mkfs.ext4 /dev/sda4 #Formateo de la particion /home
-part_uefi="/dev/sda1"
-part_swap="/dev/sda2"
-part_sis="/dev/sda3"
-part_home="/dev/sda4"
+(echo s) | mkfs.vfat -F 32 /dev/sda5 #Formateo de la particion UEFI
+mkswap /dev/sda6 #Formateo de la particion SWAP
+(echo s) | mkfs.ext4 /dev/sda7 #Formateo de la particion /
+(echo s) | mkfs.ext4 /dev/sda8 #Formateo de la particion /home
+part_uefi="/dev/sda5"
+part_swap="/dev/sda6"
+part_sis="/dev/sda7"
+part_home="/dev/sda8"
 }
 
 cambio_hostname(){
@@ -275,7 +275,7 @@ mount $part_uefi /mnt/boot/efi
 mount -t proc /proc /mnt/proc
 mount --bind /dev /mnt/dev
 mount --bind /sys /mnt/sys
-
+chroot /mnt
 (
 echo grub-install
 ) | chroot /mnt
@@ -318,9 +318,11 @@ elif [ $dual = "SI" ] && [ $uefi = "SI" ];then
 elif [ $dual = "NO" ] && [ $uefi = "NO" ];then
 	echo "Particiones no UEFI medio disco"
 	echo
+	particiones_noUEFI_halfdisk
 elif [ $dual = "NO" ] && [ $uefi = "SI" ];then
 	echo "Particiones UEFI medio disco"
 	echo
+	particiones_siUEFI_halfdisk
 else
 	echo "Algo ha fallado"
 	exit 5
@@ -362,6 +364,5 @@ echo "Preparando para el reinicio"
 auto_grub
 echo
 echo "Reiniciando"
-
-reboot
+#reboot
 echo "FIN"
