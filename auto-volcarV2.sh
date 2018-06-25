@@ -151,12 +151,20 @@ particiones_noUEFI_halfdisk() {
 particion_extend=`fdisk -l | grep Extend | cut -d " " -f 1 | cut -c9`
 formato_tabla_part=`fdisk -l /dev/sda | grep type | cut -d " " -f3`
 (
+if [ $particion_extend ]; then
 echo d #borrar particion extendida
 echo $particion_extend #numero particion
+else
+for i in `fdisk -l /dev/sda | grep /dev/sda | grep [a-z][0-9] | grep -v NTFS | cut -c 9`
+do
+echo d #borrar particion/es Linux
+echo $i #numero particion
+done
+fi
 
 echo n #Nueva particion SWAP
 echo e #Particion extendida
-if [ $formato_tabla_part != dos]; then
+if [ $formato_tabla_part != dos ]; then
 echo $particion_extend
 fi
 echo #Posicionado justo despues de la anterior
@@ -191,12 +199,20 @@ particiones_siUEFI_halfdisk() {
 particion_extend=`fdisk -l | grep Extend | cut -d " " -f 1 | cut -c9`
 formato_tabla_part=`fdisk -l /dev/sda | grep type | cut -d " " -f3`
 (
+if [ $particion_extend ]; then
 echo d #borrar particion extendida
 echo $particion_extend #numero particion
+else
+for i in `fdisk -l /dev/sda | grep /dev/sda | grep [a-z][0-9] | grep -v NTFS | cut -c 9`
+do
+echo d #borrar particion/es Linux
+echo $i #numero particion
+done
+fi
 
 echo n #Nueva particion SWAP
 echo e #Particion extendida
-if [ $formato_tabla_part != dos]; then
+if [ $formato_tabla_part != dos ]; then
 echo $particion_extend
 fi
 echo #Posicionado justo despues de la anterior
