@@ -291,7 +291,6 @@ mount $part_uefi /mnt/boot/efi
 mount -t proc /proc /mnt/proc
 mount --bind /dev /mnt/dev
 mount --bind /sys /mnt/sys
-chroot /mnt
 (
 echo grub-install
 ) | chroot /mnt
